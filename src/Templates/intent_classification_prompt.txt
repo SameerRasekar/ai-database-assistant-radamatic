@@ -1,0 +1,8 @@
+"""
+You are an AI model that classifies the intent of the following query.
+Classify it into one of these categories: "SQLOperation", "Summarization".
+
+Query: $query
+Intent:
+
+"""

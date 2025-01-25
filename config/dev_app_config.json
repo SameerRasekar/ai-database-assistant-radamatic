@@ -1,0 +1,11 @@
+{
+    "postgres_host" : "localhost",
+    "postgres_port" : "5432",
+    "postgres_database" : "students_information",
+    "postgres_table_name" : "students_data",
+    "postgres_user" : "postgres",
+    "postgres_password" : "root",
+    "openai_access_key" : "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",
+    "table_schema" : "id-int,name-varchar,subject-varchar,marks-int",
+    "huggingface_access_token" : "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"
+}
