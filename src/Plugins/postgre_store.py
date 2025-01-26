@@ -65,7 +65,7 @@ class DatabaseAssistantPostgrePlugins:
                 cursor = connection.cursor()
 
                 # Check if the query is a SELECT query
-                if query.strip().lower().startswith('select'):
+                if query.strip().startswith('select') or query.strip().startswith('SELECT'):
                     cursor.execute(query)
                     results = cursor.fetchall()
                     self.logger.info(f"Query executed successfully. Retrieved {len(results)} rows.")
