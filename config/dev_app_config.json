@@ -1,0 +1,9 @@
+{
+    "postgres_host" : "localhost",
+    "postgres_port" : "5432",
+    "postgres_database" : "students_information",
+    "postgres_table_name" : "students_data",
+    "postgres_user" : "postgres",
+    "postgres_password" : "root",    
+    "table_schema" : "CREATE TABLE students_data ( id INT PRIMARY KEY, name VARCHAR(100), subject VARCHAR(100), marks INT"
+}
