@@ -1,6 +1,11 @@
 import os
 import time
 import openai
+from dotenv import load_dotenv
+import os
+
+# Load the .env file
+load_dotenv()
 
 class DatabaseAssistantLangchainAdapter:
     def __init__(self, config, logger, prompt_template_helper):
@@ -17,6 +22,12 @@ class DatabaseAssistantLangchainAdapter:
         self.openai_api_base = os.getenv("openai_api_base")
         self.openai_api_version = os.getenv("openai_api_version")
         self.deployment_name = os.getenv("deployment_name")
+
+        # self.openai_api_type = self.config.get("openai_api_type")
+        # self.openai_api_key = self.config.get("openai_api_key")
+        # self.openai_api_base = self.config.get("openai_api_base")
+        # self.openai_api_version = self.config.get("openai_api_version")
+        # self.deployment_name = self.config.get("deployment_name")
 
         self._configure_openai()
 

@@ -1,4 +1,9 @@
 import psycopg2
+from dotenv import load_dotenv
+import os
+
+# Load the .env file
+load_dotenv()
 
 
 class DatabaseAssistantPostgrePlugins:
@@ -13,13 +18,21 @@ class DatabaseAssistantPostgrePlugins:
         self.config = config
         self.logger = logger
 
-        # Extract PostgreSQL configuration from the provided config dictionary
-        self.postgres_host = self.config.get("postgres_host")
-        self.postgres_port = self.config.get("postgres_port")
-        self.postgres_database = self.config.get("postgres_database")
-        self.postgres_table_name = self.config.get("postgres_table_name", None)
-        self.postgres_user = self.config.get("postgres_user")
-        self.postgres_pass = self.config.get("postgres_password")
+        # # Extract PostgreSQL configuration from the provided config dictionary
+        # self.postgres_host = self.config.get("postgres_host")
+        # self.postgres_port = self.config.get("postgres_port")
+        # self.postgres_database = self.config.get("postgres_database")
+        # self.postgres_table_name = self.config.get("postgres_table_name", None)
+        # self.postgres_user = self.config.get("postgres_user")
+        # self.postgres_pass = self.config.get("postgres_password")
+
+        # Extract PostgreSQL configuration from the provided .env file
+        self.postgres_host = os.getenv("postgres_host")
+        self.postgres_port = os.getenv("postgres_port")
+        self.postgres_database = os.getenv("postgres_database")
+        self.postgres_table_name = os.getenv("postgres_table_name", None)
+        self.postgres_user = os.getenv("postgres_user")
+        self.postgres_pass = os.getenv("postgres_password")
 
         # Validate essential configurations
         if not all([self.postgres_host, self.postgres_port, self.postgres_database, self.postgres_user, self.postgres_pass]):
