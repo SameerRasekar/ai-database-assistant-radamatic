@@ -12,8 +12,7 @@ class DatabaseAssistantLangchainAdapter:
         self.logger = logger
         self.table_schema = self.config["table_schema"]
         self.postgres_table_name = self.config["postgres_table_name"]
-        self.huggingface_access_token  = os.getenv("HUGGINGFACE_ACCESS_KEY")
-        
+        self.huggingface_access_token  = os.getenv("HUGGINGFACE_ACCESS_KEY")        
 
 
     def process_query_intent(self, question):

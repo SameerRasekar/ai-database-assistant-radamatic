@@ -5,5 +5,5 @@
     "postgres_table_name" : "students_data",
     "postgres_user" : "postgres",
     "postgres_password" : "root",    
-    "table_schema" : "id-int,name-varchar,subject-varchar,marks-int"    
+    "table_schema" : "CREATE TABLE students_data ( id INT PRIMARY KEY, name VARCHAR(100), subject VARCHAR(100), marks INT"
 }
