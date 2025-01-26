@@ -27,12 +27,12 @@ class DatabaseAssistantPostgrePlugins:
         # self.postgres_pass = self.config.get("postgres_password")
 
         # Extract PostgreSQL configuration from the provided .env file
-        self.postgres_host = os.getenv("postgres_host")
-        self.postgres_port = os.getenv("postgres_port")
-        self.postgres_database = os.getenv("postgres_database")
-        self.postgres_table_name = os.getenv("postgres_table_name", None)
-        self.postgres_user = os.getenv("postgres_user")
-        self.postgres_pass = os.getenv("postgres_password")
+        self.postgres_host = os.getenv("POSTGRES_HOST")
+        self.postgres_port = os.getenv("POSTGRES_PORT")
+        self.postgres_database = os.getenv("POSTGRES_DB")
+        self.postgres_table_name = os.getenv("POSTGRES_TABLE_NAME", None)
+        self.postgres_user = os.getenv("POSTGRES_USER")
+        self.postgres_pass = os.getenv("POSTGRES_PASSWORD")
 
         # Validate essential configurations
         if not all([self.postgres_host, self.postgres_port, self.postgres_database, self.postgres_user, self.postgres_pass]):
