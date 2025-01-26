@@ -1,9 +1,10 @@
-from langchain.chat_models import ChatOpenAI
+import os
+from langchain.llms import HuggingFacePipeline
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
-from langchain.llms import HuggingFacePipeline
-from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
-from huggingface_hub import login
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
+import openai
+from langchain.prompts import PromptTemplate
 
 class DatabaseAssistantLangchainAdapter:
     def __init__(self, config, logger):
@@ -11,66 +12,142 @@ class DatabaseAssistantLangchainAdapter:
         self.logger = logger
         self.table_schema = self.config["table_schema"]
         self.postgres_table_name = self.config["postgres_table_name"]
-        self.huggingface_access_token  = self.config["huggingface_access_token"]
-        login(self.huggingface_access_token)
+        self.huggingface_access_token  = os.getenv("HUGGINGFACE_ACCESS_KEY")
+        
 
-    def _setup_classification_model(self):
-        """Load the classification model for intent recognition."""
-        model_name = "distilbert-base-uncased-finetuned-sst-2-english"  # Example model for sentiment analysis
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        model = AutoModelForSequenceClassification.from_pretrained(model_name)
-        classifier = pipeline("sentiment-analysis", model=model, tokenizer=tokenizer)
-        return classifier
-    
-    def _setup_sql_generation_chain(self):
-        """Setup LangChain chain for SQL generation."""
-        sql_prompt = PromptTemplate(
-            input_variables=["query", "table_schema", "postgres_table_name"],
-            template=(
-                "Generate an SQL query for the following: {query} "
-                "where table schema is: {table_schema} and table name is: {postgres_table_name}"
-            ),
+
+    def process_query_intent(self, question):
+        """
+        Classify the intent of the given question as either "SQL Operation" or "Summarization"
+        using LangChain with a Hugging Face model.
+
+        Args:
+            question (str): The user-provided question to classify.
+            model_name (str): The Hugging Face model to use (default: bloomz-560m).
+
+        Returns:
+            str: The predicted intent ("SQL Operation" or "Summarization").
+        """
+        # Azure OpenAI Deployment Configuration
+        openai.api_type = "azure"  # This is mandatory for Azure OpenAI
+        openai.api_key = "c0b3ac530cac45b9803aaf6b3a75cc20"  # Your Azure OpenAI API key
+        openai.api_base = "https://sepia-ai.openai.azure.com/"  # Your Azure OpenAI endpoint
+        openai.api_version = "2024-02-15-preview"   # The API version you're using
+        deployment_name = "gpt-35-turbo-deployment"
+
+        # Define the LangChain prompt template
+        prompt_template = f"""
+        Given the following question, Please identify the intent of that considering whether it is for the SQLOperation or Summarization.:
+        Question: {question}
+        Table Name : {self.postgres_table_name}
+        If the intent is SQLOperation, return "SQLOperation"
+        else return "Summarization".
+        The reponse should just return single word "SQLOperation" or "Summarization".
+        The justification is not required.
+
+        """
+
+        # Create a LangChain PromptTemplate instance
+        prompt = PromptTemplate(input_variables=["question"], template=prompt_template)
+
+        # Format the prompt with the question using LangChain
+        formatted_prompt = prompt.format(question=question)
+
+        # Use Azure OpenAI's ChatCompletion API
+        response = openai.ChatCompletion.create(
+            engine=deployment_name,  # Azure deployment name
+            messages=[
+                {"role": "system", "content": "You are expert in Identification of real intent behind the questions."},
+                {"role": "user", "content": formatted_prompt}
+            ],
+            temperature=0,  # Set temperature to 0 for deterministic output
+            max_tokens=200  # Adjust max tokens for your response size
         )
 
-        # Use OpenAI's GPT-3.5-turbo or GPT-4
-        llm_sql = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
-        sql_chain = LLMChain(llm=llm_sql, prompt=sql_prompt)
-        return sql_chain
+        # Extract the SQL query from the response
+        intent = response['choices'][0]['message']['content'].strip()
+        return intent
     
-    def setup_summarization_model(self):
-        """Setup Hugging Face summarization model."""
-        summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
-        return summarizer
-    
-    def process_query_intent(self, query):
-        """Classify the query type (SQL or Summarization)."""
-        classifier = self._setup_classification_model()
-        result = classifier(query)
-        if result[0]['label'] == 'POSITIVE':  # Example, this could be adjusted for SQL or Summarization
-            return "SQLOperation"
-        else:
-            return "Summarization"
-        
-    def generate_sql_query_from_user_input(self, query):
-        """Generate SQL query from the input query using LangChain."""
-        sql_chain = self._setup_sql_generation_chain()
+    def generate_sql_query_from_user_input(self, question):
 
-        # Add table schema and table name to the input
-        inputs = {
-            "query": query,
-            "table_schema": self.table_schema,
-            "postgres_table_name": self.postgres_table_name,
-        }
+        # Azure OpenAI Deployment Configuration
+        openai.api_type = "azure"  # This is mandatory for Azure OpenAI
+        openai.api_key = "c0b3ac530cac45b9803aaf6b3a75cc20"  # Your Azure OpenAI API key
+        openai.api_base = "https://sepia-ai.openai.azure.com/"  # Your Azure OpenAI endpoint
+        openai.api_version = "2024-02-15-preview"   # The API version you're using
+        deployment_name = "gpt-35-turbo-deployment"
 
-        # Run the chain and handle errors
-        sql_query = sql_chain.run(inputs)
-        if not sql_query or len(sql_query) == 0:
-            raise ValueError("Generated SQL query is empty or invalid.")
+        # Define the LangChain prompt template
+        prompt_template = f"""
+        Given the following question, create a valid SQL query:
+        In case of Query generation, Let the queries be case insensitive. i.e Physics and physics will mean the same thing.
+        Mathematics, maths and math will mean the same thing.
+
+        Question: {question}
+        Table Name : {self.postgres_table_name}
+        Table Creation Query : {self.table_schema}
+        SQL Query:
+        """
+
+        # Create a LangChain PromptTemplate instance
+        prompt = PromptTemplate(input_variables=["question"], template=prompt_template)
+
+        # Format the prompt with the question using LangChain
+        formatted_prompt = prompt.format(question=question)
+
+        # Use Azure OpenAI's ChatCompletion API
+        response = openai.ChatCompletion.create(
+            engine=deployment_name,  # Azure deployment name
+            messages=[
+                {"role": "system", "content": "You are an AI that writes SQL queries."},
+                {"role": "user", "content": formatted_prompt}
+            ],
+            temperature=0,  # Set temperature to 0 for deterministic output
+            max_tokens=200  # Adjust max tokens for your response size
+        )
+
+        # Extract the SQL query from the response
+        sql_query = response['choices'][0]['message']['content'].strip()
         return sql_query
     
-    def generate_summarization_of_query(self, query, fetched_details):
-        """Generate a summary for the query using the summarization model."""
-        summarizer = self._setup_summarization_model()
-        context = f"Summarize the following details:\n{fetched_details} with respect to {query}"
-        summary = summarizer(context, max_length=100, min_length=30, do_sample=False)
-        return summary[0]['summary_text']
+    def generate_summarization_of_query(self, question, sql_response):
+
+        # Azure OpenAI Deployment Configuration
+        openai.api_type = "azure"  # This is mandatory for Azure OpenAI
+        openai.api_key = "c0b3ac530cac45b9803aaf6b3a75cc20"  # Your Azure OpenAI API key
+        openai.api_base = "https://sepia-ai.openai.azure.com/"  # Your Azure OpenAI endpoint
+        openai.api_version = "2024-02-15-preview"   # The API version you're using
+        deployment_name = "gpt-35-turbo-deployment"
+
+        # Define the LangChain prompt template
+        prompt_template = f"""
+        Given the following question and the SQL response for the Question. create a valid SQL query:
+        Please provide a summary of the SQL response with respect to Question
+        Question: {question}
+        SQL response : {sql_response}
+
+        Please provide crisp and clear summary.
+        In case of summarization, Let the queries be case insensitive. i.e Physics and physics will mean the same thing.
+        Mathematics, maths and math will mean the same thing.
+        """
+
+        # Create a LangChain PromptTemplate instance
+        prompt = PromptTemplate(input_variables=["question"], template=prompt_template)
+
+        # Format the prompt with the question using LangChain
+        formatted_prompt = prompt.format(question=question)
+
+        # Use Azure OpenAI's ChatCompletion API
+        response = openai.ChatCompletion.create(
+            engine=deployment_name,  # Azure deployment name
+            messages=[
+                {"role": "system", "content": "You are an AI assistant expert in Summarization."},
+                {"role": "user", "content": formatted_prompt}
+            ],
+            temperature=0,  # Set temperature to 0 for deterministic output
+            max_tokens=200  # Adjust max tokens for your response size
+        )
+
+        # Extract the SQL query from the response
+        sql_query = response['choices'][0]['message']['content'].strip()
+        return sql_query
