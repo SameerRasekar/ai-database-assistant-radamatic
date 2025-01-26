@@ -10,10 +10,10 @@ class DatabaseAssistantPostgrePlugins:
         self.postgres_database = self.config.get("postgres_database")
         self.postgres_table_name = self.config.get("postgres_table_name")
         self.postgres_user = self.config.get("postgres_user")
-        self.postgres_pass = self.config.get("postgres_pass")
+        self.postgres_pass = self.config.get("postgres_password")
 
 
-    def _connect_to_postgresql(self, host, port, database, user, password):
+    def _connect_to_postgresql(self):
         """
         Connects to the PostgreSQL database and returns the connection object.
         """
@@ -44,41 +44,6 @@ class DatabaseAssistantPostgrePlugins:
         except psycopg2.Error as e:
             self.logger.error(f"Error while closing the connection: {e}")
 
-import psycopg2
-
-class DatabaseExecutor:
-    def __init__(self, logger):
-        self.logger = logger
-
-    def _connect_to_postgresql(self):
-        """
-        Establishes a connection to the PostgreSQL database.
-        
-        Returns:
-        - connection (psycopg2.extensions.connection): A connection object to the database.
-        """
-        try:
-            connection = psycopg2.connect(
-                dbname="your_dbname",
-                user="your_user",
-                password="your_password",
-                host="your_host",
-                port="your_port"
-            )
-            return connection
-        except psycopg2.Error as e:
-            self.logger.error(f"Error connecting to the database: {e}")
-            return None
-
-    def _disconnect_from_postgresql(self, connection):
-        """
-        Closes the connection to the PostgreSQL database.
-        
-        Parameters:
-        - connection (psycopg2.extensions.connection): The connection object to be closed.
-        """
-        if connection:
-            connection.close()
 
     def execute_sql_query(self, query):
         """

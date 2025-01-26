@@ -1,8 +1,6 @@
 import json
 import os
 import sys
-from datetime import datetime
-
 import logging
 
 from fastapi import FastAPI, HTTPException, Response, Query, Header
@@ -17,6 +15,7 @@ from Adapters.langchain_adapter import DatabaseAssistantLangchainAdapter
 from Core.database_assistant_core import DatabaseAssistantCore
 from Plugins.postgre_store import DatabaseAssistantPostgrePlugins
 from Models.process_query_payload import ProcessQueryPayload
+from Utilities.prompt_template_helper import PromptTemplateHelper
 
 
 app = FastAPI()
@@ -34,8 +33,10 @@ class DatabaseAssistantController:
     def __init__(self,logger):
         self.logger = logger
         config = self._read_config()
-        self.langchain_adapter = DatabaseAssistantLangchainAdapter(config, self.logger)
+        self.prompt_template_helper = PromptTemplateHelper(logger)
+        self.langchain_adapter = DatabaseAssistantLangchainAdapter(config, self.logger, self.prompt_template_helper)
         self.postgre_plugin = DatabaseAssistantPostgrePlugins(config, self.logger)
+        self.prompt_template_helper = PromptTemplateHelper(logger)
         self.database_assistant_core = DatabaseAssistantCore(config, self.logger, self.langchain_adapter, self.postgre_plugin)
         self.database_assistant_service = DatabaseAssistantService(config, self.logger, self.database_assistant_core)
         
@@ -65,8 +66,7 @@ class DatabaseAssistantController:
 @app.post("/process_query")
 async def process_query(payload: ProcessQueryPayload):
     if not payload:
-        raise HTTPException(status_code=400, detail= "Query is missing.")
-    
+        raise HTTPException(status_code=400, detail= "Query is missing.")    
     try:
         log.info(f"Received request Payload: {payload}")
         response = controller.database_assistant_service.process_query(payload)

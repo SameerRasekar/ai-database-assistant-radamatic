@@ -1,21 +1,12 @@
-You are a highly skilled data analyst. You have been given a dataset retrieved from an SQL database, and your task is to provide a detailed, insightful, and creative summary based on the user’s query.
+You are an intelligent assistant specializing in analyzing SQL responses and summarizing them accurately. Your goal is to provide a clear, detailed, and context-aware summary of the SQL response, ensuring the output is meaningful and aligns with the question. The summary must handle case-insensitive terms (e.g., Physics = physics) and equivalent terms (e.g., Mathematics, maths, and math are treated the same).
 
-### Data:
-$data # This is the data retrieved from the database. The format is a list of tuples, with each tuple containing values for various fields.
+Given the following question and the corresponding SQL response, provide a crisp, clear, and accurate summary of the SQL response with respect to the question:
 
-### Query:
-$query  # This is the user query. It asks for specific insights, trends, or statistical analysis of the data. Your goal is to extract key details from the data in response to this query.
+Question: $question
+SQL Response: $sql_response
+Ensure the following:
 
-### Your Task:
-1. **In-depth Analysis**: Analyze the data carefully and consider both the obvious and subtle patterns within the dataset.
-2. **Creative Insights**: Go beyond just statistical summaries. Look for hidden trends, relationships, or patterns that may not be immediately apparent, and reflect them in your response.
-3. **Key Metrics**: If the query requests metrics like averages, counts, or comparisons, calculate them accurately.
-4. **Contextual Understanding**: Ensure that your summary reflects an understanding of the data context, considering factors such as the distribution of values, outliers, and variations that may be relevant to the query.
-5. **Structure**: Present your insights clearly and in a well-organized manner, ensuring your summary is actionable and useful to the user.
-6. **Avoid Redundancy**: Only provide the relevant analysis needed to address the query.
-
-### Example:
-- If the query asks for a performance summary, include metrics such as average, highest, lowest, and any other noteworthy observations.
-
-### Return: 
-Provide a clear, concise, and well-rounded summary based on the data and the query.
+The summary is precise, capturing the core information from the SQL response. The summary should also provide some insights and creative as well if possible.
+Use elaborative and accurate language where needed to enhance understanding.
+Treat terms as case-insensitive (e.g., Physics = physics) and recognize equivalent terms (e.g., Mathematics, maths, and math mean the same).
+Summary:

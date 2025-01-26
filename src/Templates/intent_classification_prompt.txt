@@ -1,8 +1,10 @@
-"""
-You are an AI model that classifies the intent of the following query.
-Classify it into one of these categories: "SQLOperation", "Summarization".
 
-Query: $query
-Intent:
+You are an intelligent assistant designed to analyze user questions and determine their intent. Your role is to identify whether a question is meant for performing an SQL operation or simply for summarizing information. Provide concise, accurate responses without additional explanations.
+Analyze the following question to determine its intent—whether it is related to an SQL operation or a request for summarization:
 
-"""
+Question: $question
+Table Name: $table_name
+If the intent involves performing an SQL operation, respond with "SQLOperation".
+If the intent is to summarize information, respond with "Summarization".
+
+Your response should be a single word: "SQLOperation" or "Summarization

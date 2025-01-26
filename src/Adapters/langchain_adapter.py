@@ -1,152 +1,124 @@
 import os
-from langchain.llms import HuggingFacePipeline
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
+import time
 import openai
-from langchain.prompts import PromptTemplate
 
 class DatabaseAssistantLangchainAdapter:
-    def __init__(self, config, logger):
+    def __init__(self, config, logger, prompt_template_helper):
         self.config = config
         self.logger = logger
+        self.prompt_template_helper = prompt_template_helper
         self.table_schema = self.config["table_schema"]
         self.postgres_table_name = self.config["postgres_table_name"]
-        self.huggingface_access_token  = os.getenv("HUGGINGFACE_ACCESS_KEY")        
+        self.huggingface_access_token = os.getenv("HUGGINGFACE_ACCESS_KEY")
 
+        # Azure OpenAI Deployment Configuration
+        self.openai_api_type = os.getenv("openai_api_type")
+        self.openai_api_key = os.getenv("openai_api_key")
+        self.openai_api_base = os.getenv("openai_api_base")
+        self.openai_api_version = os.getenv("openai_api_version")
+        self.deployment_name = os.getenv("deployment_name")
+
+        self._configure_openai()
+
+    def _configure_openai(self):
+        openai.api_type = self.openai_api_type
+        openai.api_key = self.openai_api_key
+        openai.api_base = self.openai_api_base
+        openai.api_version = self.openai_api_version
+
+    def _generate_response(self, system_message, user_message, temperature=0, max_tokens=200, retries=3, delay=2):
+        """
+        Retry mechanism for OpenAI API requests.
+        """
+        attempt = 0
+        while attempt < retries:
+            try:
+                response = openai.ChatCompletion.create(
+                    engine=self.deployment_name,
+                    messages=[{"role": "system", "content": system_message},
+                              {"role": "user", "content": user_message}],
+                    temperature=temperature,
+                    max_tokens=max_tokens
+                )
+                return response['choices'][0]['message']['content'].strip()
+            except openai.error.OpenAIError as e:
+                self.logger.error(f"OpenAI API Error: {e}. Retrying...")
+                attempt += 1
+                if attempt >= retries:
+                    raise Exception(f"Max retries reached. Could not get response: {e}")
+                time.sleep(delay * attempt)  # Exponential backoff
+            except Exception as e:
+                self.logger.error(f"Unexpected error: {e}. Retrying...")
+                attempt += 1
+                if attempt >= retries:
+                    raise Exception(f"Max retries reached. Could not get response: {e}")
+                time.sleep(delay * attempt)  # Exponential backoff
 
     def process_query_intent(self, question):
         """
-        Classify the intent of the given question as either "SQL Operation" or "Summarization"
-        using LangChain with a Hugging Face model.
-
-        Args:
-            question (str): The user-provided question to classify.
-            model_name (str): The Hugging Face model to use (default: bloomz-560m).
-
-        Returns:
-            str: The predicted intent ("SQL Operation" or "Summarization").
+        Classify the intent of the given question as either "SQL Operation" or "Summarization".
         """
-        # Azure OpenAI Deployment Configuration
-        openai.api_type = "azure"  # This is mandatory for Azure OpenAI
-        openai.api_key = "c0b3ac530cac45b9803aaf6b3a75cc20"  # Your Azure OpenAI API key
-        openai.api_base = "https://sepia-ai.openai.azure.com/"  # Your Azure OpenAI endpoint
-        openai.api_version = "2024-02-15-preview"   # The API version you're using
-        deployment_name = "gpt-35-turbo-deployment"
+        try:
+            intent_prompt_template = self.prompt_template_helper.load_template("intent_classification_prompt")
+            intent_prompt_template = intent_prompt_template.substitute(question=question, table_name=self.postgres_table_name)
 
-        # Define the LangChain prompt template
-        prompt_template = f"""
-        Given the following question, Please identify the intent of that considering whether it is for the SQLOperation or Summarization.:
-        Question: {question}
-        Table Name : {self.postgres_table_name}
-        If the intent is SQLOperation, return "SQLOperation"
-        else return "Summarization".
-        The reponse should just return single word "SQLOperation" or "Summarization".
-        The justification is not required.
+            response = self._generate_response(
+                system_message="You are an expert in identifying the real intent behind the questions.",
+                user_message=intent_prompt_template
+            )
+            return response
+        except Exception as e:
+            self.logger.error(f"Error processing query intent: {e}")
+            return None
 
-        """
-
-        # Create a LangChain PromptTemplate instance
-        prompt = PromptTemplate(input_variables=["question"], template=prompt_template)
-
-        # Format the prompt with the question using LangChain
-        formatted_prompt = prompt.format(question=question)
-
-        # Use Azure OpenAI's ChatCompletion API
-        response = openai.ChatCompletion.create(
-            engine=deployment_name,  # Azure deployment name
-            messages=[
-                {"role": "system", "content": "You are expert in Identification of real intent behind the questions."},
-                {"role": "user", "content": formatted_prompt}
-            ],
-            temperature=0,  # Set temperature to 0 for deterministic output
-            max_tokens=200  # Adjust max tokens for your response size
-        )
-
-        # Extract the SQL query from the response
-        intent = response['choices'][0]['message']['content'].strip()
-        return intent
-    
     def generate_sql_query_from_user_input(self, question):
-
-        # Azure OpenAI Deployment Configuration
-        openai.api_type = "azure"  # This is mandatory for Azure OpenAI
-        openai.api_key = "c0b3ac530cac45b9803aaf6b3a75cc20"  # Your Azure OpenAI API key
-        openai.api_base = "https://sepia-ai.openai.azure.com/"  # Your Azure OpenAI endpoint
-        openai.api_version = "2024-02-15-preview"   # The API version you're using
-        deployment_name = "gpt-35-turbo-deployment"
-
-        # Define the LangChain prompt template
-        prompt_template = f"""
-        Given the following question, create a valid SQL query:
-        In case of Query generation, Let the queries be case insensitive. i.e Physics and physics will mean the same thing.
-        Mathematics, maths and math will mean the same thing.
-
-        Question: {question}
-        Table Name : {self.postgres_table_name}
-        Table Creation Query : {self.table_schema}
-        SQL Query:
         """
+        Generate a valid SQL query based on the user input question.
+        """
+        try:
+            sql_prompt_template = self.prompt_template_helper.load_template("text_to_sql_prompt")
+            sql_prompt_template = sql_prompt_template.substitute(question=question, table_name=self.postgres_table_name, table_schema=self.table_schema)
 
-        # Create a LangChain PromptTemplate instance
-        prompt = PromptTemplate(input_variables=["question"], template=prompt_template)
+            response = self._generate_response(
+                system_message="You are an AI that writes SQL queries.",
+                user_message=sql_prompt_template
+            )
+            return response
+        except Exception as e:
+            self.logger.error(f"Error generating SQL query: {e}")
+            return None
 
-        # Format the prompt with the question using LangChain
-        formatted_prompt = prompt.format(question=question)
-
-        # Use Azure OpenAI's ChatCompletion API
-        response = openai.ChatCompletion.create(
-            engine=deployment_name,  # Azure deployment name
-            messages=[
-                {"role": "system", "content": "You are an AI that writes SQL queries."},
-                {"role": "user", "content": formatted_prompt}
-            ],
-            temperature=0,  # Set temperature to 0 for deterministic output
-            max_tokens=200  # Adjust max tokens for your response size
-        )
-
-        # Extract the SQL query from the response
-        sql_query = response['choices'][0]['message']['content'].strip()
-        return sql_query
-    
     def generate_summarization_of_query(self, question, sql_response):
-
-        # Azure OpenAI Deployment Configuration
-        openai.api_type = "azure"  # This is mandatory for Azure OpenAI
-        openai.api_key = "c0b3ac530cac45b9803aaf6b3a75cc20"  # Your Azure OpenAI API key
-        openai.api_base = "https://sepia-ai.openai.azure.com/"  # Your Azure OpenAI endpoint
-        openai.api_version = "2024-02-15-preview"   # The API version you're using
-        deployment_name = "gpt-35-turbo-deployment"
-
-        # Define the LangChain prompt template
-        prompt_template = f"""
-        Given the following question and the SQL response for the Question. create a valid SQL query:
-        Please provide a summary of the SQL response with respect to Question
-        Question: {question}
-        SQL response : {sql_response}
-
-        Please provide crisp and clear summary.
-        In case of summarization, Let the queries be case insensitive. i.e Physics and physics will mean the same thing.
-        Mathematics, maths and math will mean the same thing.
         """
+        Summarize the SQL response in the context of the user question.
+        """
+        try:
+            summarization_prompt_template = self.prompt_template_helper.load_template("summarization_prompt")
+            summarization_prompt_template = summarization_prompt_template.substitute(question=question, sql_response=sql_response)
 
-        # Create a LangChain PromptTemplate instance
-        prompt = PromptTemplate(input_variables=["question"], template=prompt_template)
+            response = self._generate_response(
+                system_message="You are an AI assistant expert in summarization.",
+                user_message=summarization_prompt_template,
+                temperature=0
+            )
+            return response
+        except Exception as e:
+            self.logger.error(f"Error generating summarization: {e}")
+            return None
+    
+    def generate_sql_query_from_user_input_for_summarization(self, question):
+        """
+        Generate a valid SQL query based on the user input question.
+        """
+        try:
+            sql_prompt_template = self.prompt_template_helper.load_template("text_to_sql_summarization_prompt")
+            sql_prompt_template = sql_prompt_template.substitute(question=question, table_name=self.postgres_table_name, table_schema=self.table_schema)
 
-        # Format the prompt with the question using LangChain
-        formatted_prompt = prompt.format(question=question)
-
-        # Use Azure OpenAI's ChatCompletion API
-        response = openai.ChatCompletion.create(
-            engine=deployment_name,  # Azure deployment name
-            messages=[
-                {"role": "system", "content": "You are an AI assistant expert in Summarization."},
-                {"role": "user", "content": formatted_prompt}
-            ],
-            temperature=0,  # Set temperature to 0 for deterministic output
-            max_tokens=200  # Adjust max tokens for your response size
-        )
-
-        # Extract the SQL query from the response
-        sql_query = response['choices'][0]['message']['content'].strip()
-        return sql_query
+            response = self._generate_response(
+                system_message="You are an AI that writes SQL queries.",
+                user_message=sql_prompt_template
+            )
+            return response
+        except Exception as e:
+            self.logger.error(f"Error generating SQL query for summarization: {e}")
+            return None
