@@ -27,49 +27,61 @@ class DatabaseAssistantLangchainAdapter:
         openai.api_version = self.openai_api_version
 
     def _generate_response(self, system_message, user_message, temperature=0, max_tokens=200, retries=3, delay=2):
-        """
-        Retry mechanism for OpenAI API requests.
-        """
         attempt = 0
         while attempt < retries:
             try:
+                self.logger.info(f"Sending request to OpenAI. Attempt {attempt + 1}. User message: {user_message}")
                 response = openai.ChatCompletion.create(
                     engine=self.deployment_name,
-                    messages=[{"role": "system", "content": system_message},
-                              {"role": "user", "content": user_message}],
+                    messages=[
+                        {"role": "system", "content": system_message},
+                        {"role": "user", "content": user_message}
+                    ],
                     temperature=temperature,
                     max_tokens=max_tokens
                 )
+                self.logger.info(f"OpenAI response received: {response}")
                 return response['choices'][0]['message']['content'].strip()
             except openai.error.OpenAIError as e:
-                self.logger.error(f"OpenAI API Error: {e}. Retrying...")
+                self.logger.error(f"OpenAI API Error on attempt {attempt + 1}: {e}. Retrying...")
                 attempt += 1
                 if attempt >= retries:
+                    self.logger.error("Max retries reached for OpenAI API request.")
                     raise Exception(f"Max retries reached. Could not get response: {e}")
                 time.sleep(delay * attempt)  # Exponential backoff
             except Exception as e:
-                self.logger.error(f"Unexpected error: {e}. Retrying...")
+                self.logger.error(f"Unexpected error on attempt {attempt + 1}: {e}. Retrying...")
                 attempt += 1
                 if attempt >= retries:
+                    self.logger.error("Max retries reached for unexpected error.")
                     raise Exception(f"Max retries reached. Could not get response: {e}")
-                time.sleep(delay * attempt)  # Exponential backoff
+                time.sleep(delay * attempt)
+
 
     def process_query_intent(self, question):
-        """
-        Classify the intent of the given question as either "SQL Operation" or "Summarization".
-        """
+        if not question:
+            self.logger.error("Received an empty question in process_query_intent.")
+            raise ValueError("Query must be a non-empty string.")
+
         try:
+            self.logger.info(f"Processing query intent for question: {question}")
+
             intent_prompt_template = self.prompt_template_helper.load_template("intent_classification_prompt")
             intent_prompt_template = intent_prompt_template.substitute(question=question, table_name=self.postgres_table_name)
+
+            self.logger.info(f"Generated intent classification prompt: {intent_prompt_template}")
 
             response = self._generate_response(
                 system_message="You are an expert in identifying the real intent behind the questions.",
                 user_message=intent_prompt_template
             )
+
+            self.logger.info(f"Intent classification response: {response}")
             return response
         except Exception as e:
-            self.logger.error(f"Error processing query intent: {e}")
-            return None
+            self.logger.error(f"Error in process_query_intent: {e}")
+            raise
+
 
     def generate_sql_query_from_user_input(self, question):
         """
@@ -98,8 +110,7 @@ class DatabaseAssistantLangchainAdapter:
 
             response = self._generate_response(
                 system_message="You are an AI assistant expert in summarization.",
-                user_message=summarization_prompt_template,
-                temperature=0
+                user_message=summarization_prompt_template
             )
             return response
         except Exception as e:

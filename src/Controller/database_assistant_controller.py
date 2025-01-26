@@ -69,7 +69,7 @@ def read_root():
     
 @app.post("/process_query")
 async def process_query(payload: ProcessQueryPayload):
-    if not payload:
+    if not payload.query:
         raise HTTPException(status_code=400, detail= "Query is missing.")    
     try:
         log.info(f"Received request Payload: {payload}")
