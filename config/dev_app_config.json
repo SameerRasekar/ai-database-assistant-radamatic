@@ -8,7 +8,7 @@
     "table_schema" : "CREATE TABLE students_data ( id INT PRIMARY KEY, name VARCHAR(100), subject VARCHAR(100), marks INT",
     "openai_api_type" : "azure",
     "openai_api_key" : "c0b3ac530cac45b9803aaf6b3a75cc20",
-    "openai_api_base" : "https://sepia-ai.openai.azure.com/",
+    "openai_api_base" : "enter your open ai base key",
     "openai_api_version" : "2024-02-15-preview",
     "deployment_name" : "gpt-35-turbo-deployment"
 }
