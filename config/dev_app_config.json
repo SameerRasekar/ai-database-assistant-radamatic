@@ -1,14 +1,14 @@
 {
-    "postgres_host" : "db",
-    "postgres_port" : "5432",
-    "postgres_database" : "students_information",
-    "postgres_table_name" : "students_data",
-    "postgres_user" : "postgres",
-    "postgres_password" : "root",    
-    "table_schema" : "CREATE TABLE students_data ( id INT PRIMARY KEY, name VARCHAR(100), subject VARCHAR(100), marks INT",
-    "openai_api_type" : "azure",
-    "openai_api_key" : "c0b3ac530cac45b9803aaf6b3a75cc20",
-    "openai_api_base" : "enter your open ai base key",
-    "openai_api_version" : "2024-02-15-preview",
-    "deployment_name" : "gpt-35-turbo-deployment"
+    "postgres_host" : "${POSTGRES_HOST}",
+    "postgres_port" : "${POSTGRES_PORT}",
+    "postgres_database" : "${POSTGRES_DB}",
+    "postgres_table_name" : "${POSTGRES_TABLE_NAME}",
+    "postgres_user" : "${POSTGRES_USER}",
+    "postgres_password" : "${POSTGRES_PASSWORD}",    
+    "table_schema" : "CREATE TABLE students_data ( id INT PRIMARY KEY, name VARCHAR(100), subject VARCHAR(100), marks INT );",
+    "openai_api_type" : "${OPENAI_API_TYPE}",
+    "openai_api_key" : "${OPENAI_API_KEY}",
+    "openai_api_base" : "${OPENAI_API_BASE}",
+    "openai_api_version" : "${OPENAI_API_VERSION}",
+    "deployment_name" : "${DEPLOYMENT_NAME}"
 }
