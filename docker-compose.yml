@@ -2,9 +2,23 @@ services:
   app:
     build: .
     ports:
-      - "80:80"                     # Maps host port 80 to container port 80
+      - "8000:80"                   # Maps host port 8000 to container port 80
     environment:
       - DATABASE_URL=${DATABASE_URL}  # Pass database URL from .env file
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_TABLE_NAME=${POSTGRES_TABLE_NAME}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - OPENAI_API_TYPE=${OPENAI_API_TYPE}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_API_BASE=${OPENAI_API_BASE}
+      - OPENAI_API_VERSION=${OPENAI_API_VERSION}
+      - DEPLOYMENT_NAME=${DEPLOYMENT_NAME}
+      - HUGGINGFACE_ACCESS_KEY=${HUGGINGFACE_ACCESS_KEY}
+      - DEBUG=${DEBUG}
+      - APP_ENV=${APP_ENV}
     depends_on:
       - db                          # Ensures the app waits for the database to be ready
     volumes:

@@ -6,6 +6,10 @@ import logging
 from fastapi import FastAPI, HTTPException, Response, Query, Header
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+
+# Load environment variables from .env file if it exists
+load_dotenv()
 
 path = os.path.abspath("./src/")
 sys.path.append(path)
@@ -36,7 +40,6 @@ class DatabaseAssistantController:
         self.prompt_template_helper = PromptTemplateHelper(logger)
         self.langchain_adapter = DatabaseAssistantLangchainAdapter(config, self.logger, self.prompt_template_helper)
         self.postgre_plugin = DatabaseAssistantPostgrePlugins(config, self.logger)
-        self.prompt_template_helper = PromptTemplateHelper(logger)
         self.database_assistant_core = DatabaseAssistantCore(config, self.logger, self.langchain_adapter, self.postgre_plugin)
         self.database_assistant_service = DatabaseAssistantService(config, self.logger, self.database_assistant_core)
         
@@ -59,7 +62,16 @@ class DatabaseAssistantController:
         # Combine the directory path with the config file name
         config_file_path = os.path.join(parent_dir, "config", config_file_name)
         with open(config_file_path, 'r') as file:
-            config_data = json.load(file)
+            config_content = file.read()
+        
+        # Replace environment variable placeholders with actual values
+        import re
+        def replace_env_vars(match):
+            var_name = match.group(1)
+            return os.environ.get(var_name, match.group(0))
+        
+        config_content = re.sub(r'\$\{([^}]+)\}', replace_env_vars, config_content)
+        config_data = json.loads(config_content)
         
         return config_data
     
@@ -84,9 +96,15 @@ def setup_logger():
     logger = logging.getLogger()
     log_debug_flag = os.environ.get('DEBUG', 'false')
     if log_debug_flag == 'true':
-        logger.setLevel(logging.ERROR)
+        logger.setLevel(logging.DEBUG)
     else:
         logger.setLevel(logging.INFO)
+    
+    # Ensure logs directory exists
+    import os
+    if not os.path.exists('logs'):
+        os.makedirs('logs')
+    
     # Configure the logging settings
     logging.basicConfig(
         format='%(asctime)s - %(levelname)s - %(message)s',
@@ -105,12 +123,13 @@ controller = DatabaseAssistantController(logger)
 if __name__ == "__main__":
     try:
         import uvicorn
-
-        uvicorn.run(app, host="127.0.0.1", port=80)
+        
         logger = setup_logger()
-        logger.info("The controller is initialize, you can start sending the requests.")
+        logger.info("The controller is initialized, you can start sending the requests.")
+        
+        uvicorn.run(app, host="127.0.0.1", port=8000)
 
         # local_debug(controller)
     except Exception as ex:
-        logger.error(f"Exception occurred while initializing the credit service controller. Exception:{ex}")
+        logger.error(f"Exception occurred while initializing the database assistant controller. Exception:{ex}")
         logger.info("The controller failed to initialize, please view logs for more details")
